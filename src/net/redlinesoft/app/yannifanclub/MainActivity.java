@@ -1,25 +1,11 @@
 package net.redlinesoft.app.yannifanclub;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.URL;
-import java.net.URLConnection;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-
-import net.redlinesoft.app.yannifanclub.R;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -27,72 +13,65 @@ import org.apache.http.StatusLine;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
-import org.json.JSONException;
-
-import com.google.ads.*;
-
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.StrictMode;
-import android.annotation.SuppressLint;
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.app.ProgressDialog;
-import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.database.Cursor;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.support.v4.widget.SimpleCursorAdapter;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.Window;
 import android.widget.AdapterView;
-import android.widget.ImageView;
+import android.widget.AdapterView.OnItemClickListener;
 import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.AdapterView.OnItemClickListener;
-import android.widget.RelativeLayout;
 import android.widget.Toast;
+
+import com.google.ads.AdRequest;
+import com.google.ads.AdSize;
+import com.google.ads.AdView;
 
 public class MainActivity extends Activity {
 
 	private AdView adView;
+	int data_size = 0; 
+	public ArrayList<HashMap<String, String>> MyArrList = new ArrayList<HashMap<String, String>>();
+	public HashMap<String, String> map;
+	ListView listItem;
 
 	String url = "http://query.yahooapis.com/v1/public/yql?q=select%20title.content%2C%20link.href%20from%20feed%20where%20url%3D%22https%3A%2F%2Fgdata.youtube.com%2Ffeeds%2Fapi%2Fusers%2Fyannivideos%2Fuploads%3Fmax-results%3D50%22%20and%20link.rel%3D%22alternate%22&format=json&callback=";
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_main);
+		requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
+		setContentView(R.layout.activity_main); 
+		setProgressBarIndeterminateVisibility(false);
+		 
 
 		// break policy
 		if (android.os.Build.VERSION.SDK_INT > 9) {
 			StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder()
 					.permitAll().build();
 			StrictMode.setThreadPolicy(policy);
-		}
-
-		ProgressDialog progress = ProgressDialog.show(this, null, "loading...",
-				false);
+		} 
 
 		// get xml data form yql
 		if (checkNetworkStatus()) {
 
 			// Create the adView
-			adView = new AdView(this, AdSize.SMART_BANNER, "a15116b3fb5c1da");
+			adView = new AdView(this, AdSize.BANNER, "a15116b3fb5c1da");
 			// Lookup your LinearLayout assuming it’s been given
 			// the attribute android:id="@+id/mainLayout"
 			LinearLayout layout = (LinearLayout) findViewById(R.id.mainLayout);
@@ -101,6 +80,19 @@ public class MainActivity extends Activity {
 			// Initiate a generic request to load it with an ad
 			adView.loadAd(new AdRequest());
 
+			new  LoadContentAsync().execute();
+
+		} else {
+			Toast.makeText(getBaseContext(), "No network connection!",
+					Toast.LENGTH_SHORT).show(); 
+		}
+
+	}
+	
+	public class LoadContentAsync extends AsyncTask<String, Void, Void> {
+
+		@Override
+		protected Void doInBackground(String... params) {
 			// load json data
 			try {
 				JSONObject json_data = new JSONObject(getJSONUrl(url));
@@ -108,13 +100,8 @@ public class MainActivity extends Activity {
 				JSONObject json_result = json_query.getJSONObject("results");
 				JSONArray json_entry = json_result.getJSONArray("entry");
 				Log.d("JSON", String.valueOf(json_entry.length()));
-
-				final ArrayList<HashMap<String, String>> MyArrList = new ArrayList<HashMap<String, String>>();
-				HashMap<String, String> map;
-
+				
 				for (int i = 0; i < json_entry.length(); i++) {
-
-					// parse json
 					JSONObject c = json_entry.getJSONObject(i);
 					Log.d("JSON", c.getString("title").toString());
 					Log.d("JSON", c.getJSONObject("link").getString("href")
@@ -131,43 +118,51 @@ public class MainActivity extends Activity {
 					map.put("link", c.getJSONObject("link").getString("href"));
 					map.put("videoid", videoid[1]);
 					MyArrList.add(map);
-
+				 
 				}
 
-				ListView listItem = (ListView) findViewById(R.id.listItem);
-				LazyAdapter adapter = new LazyAdapter(this, MyArrList);
-				listItem.setAdapter(adapter);
-
-				progress.dismiss();
-
-				// OnClick Item
-				listItem.setOnItemClickListener(new OnItemClickListener() {
-
-					@Override
-					public void onItemClick(AdapterView<?> arg0, View arg1,
-							int arg2, long arg3) {
-						// TODO Auto-generated method stub 
-						Intent fanPageIntent = new Intent(Intent.ACTION_VIEW);
-						fanPageIntent.setType("text/url");
-						fanPageIntent.setData(Uri.parse(MyArrList.get(arg2).get("link")));
-						startActivity(fanPageIntent);
-					}
-				});
+				data_size = json_entry.length();
 
 			} catch (JSONException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-				Toast.makeText(getBaseContext(), "cannot load data !",
-						Toast.LENGTH_SHORT).show();
-				progress.dismiss();
+				Toast.makeText(getBaseContext(), "Cannot connect to server!",Toast.LENGTH_SHORT).show();
 			}
-
-		} else {
-			Toast.makeText(getBaseContext(), "No network connection!",
-					Toast.LENGTH_SHORT).show();
-			progress.dismiss();
+			return null;
 		}
 
+		@Override
+		protected void onPostExecute(Void result) {
+			// TODO Auto-generated method stub
+			ShowResult(MyArrList);
+			setProgressBarIndeterminateVisibility(false);
+		}
+
+		@Override
+		protected void onPreExecute() {
+			// TODO Auto-generated method stub
+			super.onPreExecute();
+			setProgressBarIndeterminateVisibility(true);
+		}
+		
+	}
+	
+	public void ShowResult(ArrayList<HashMap<String, String>> myArrList) { 
+		if (data_size>0) {
+			ListView listItem = (ListView) findViewById(R.id.listItem);	
+			LazyAdapter adapter = new LazyAdapter(this, MyArrList);
+			listItem.setAdapter(adapter);				
+			listItem.setOnItemClickListener(new OnItemClickListener() {
+				@Override
+				public void onItemClick(AdapterView<?> arg0, View arg1, int arg2,
+						long arg3) {
+					Intent fanPageIntent = new Intent(Intent.ACTION_VIEW);
+					fanPageIntent.setType("text/url");
+					fanPageIntent.setData(Uri.parse(MyArrList.get(arg2).get("link")));
+					startActivity(fanPageIntent);			
+				}
+			});
+		}
 	}
 
 	public String getJSONUrl(String url) {
