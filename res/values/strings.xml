@@ -1,4 +1,4 @@
- <resources>
+<resources>
 
     <string name="app_name">Yanni World FanClub</string>
     <string name="hello_world">Hello world!</string>
@@ -7,5 +7,7 @@
     <string name="menu_share">Share...</string>
     <string name="text_share_subject">Yanni World FanClub</string>
     <string name="text_share_body">Yanni World FanClub https://play.google.com/store/apps/details?id=</string>
+
+    <color name="gray">#333333</color>
 
 </resources>
